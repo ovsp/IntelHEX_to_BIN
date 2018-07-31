@@ -1,0 +1,2 @@
+IntelHEX_to_BIN 1FFFEC00-1FFFF800.srec 00
+pause
