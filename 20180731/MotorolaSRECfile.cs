@@ -23,6 +23,7 @@ public class MotorolaSRECfile
 				//if (ErrorMessage == "") ErrorMessage = line.ErrorMessages;
 				FileErrorMessages.AddRange(line.LineErrorMessages);
 				if (line.CriticalErrors == true) CriticalError = true;
+				LinesOfFile.Add(line.crntLine);
 				
 				switch (line.recordtype)
 				{
@@ -30,11 +31,16 @@ public class MotorolaSRECfile
 					case SRECline.RecordType.DataRecord24:
 					case SRECline.RecordType.DataRecord32:
 							//data.AddRange(line.data);
+							AddressLineSorted.Add(line.address, line.data);
 							int ij=0;
 							foreach( byte bt in line.data)
 								{
-										AddressByteSorted.Add((uint)(line.address+ij), line.data[ij]);
-										ij++;		
+									AddressByteSorted.Add((long)(line.address+ij), line.data[ij]);
+									Addresses.Add((long)(line.address+ij));
+									Bytes.Add(line.data[ij]);
+									if (minAddress > (long)(line.address+ij)) minAddress = (long)(line.address+ij);
+									if (maxAddress < (long)(line.address+ij)) maxAddress = (long)(line.address+ij);
+									ij++;		
 								}
 							
 						break;
@@ -58,24 +64,7 @@ public class MotorolaSRECfile
 					eof = true;
 				}
 			}
-			
-			foreach( KeyValuePair<uint, byte> dabs in AddressByteSorted )
-			{
-				Addresses.Add(dabs.Key);
-				Bytes.Add(dabs.Value);
-			}
-			
-			for (int i = 0; i < AddressByteSorted.Count; i++)
-			{
-				if (Addresses[i] < minAddress) minAddress = Addresses[i];
-				if (Addresses[i] > maxAddress) maxAddress = Addresses[i];
-			}
-			
-			//for (int i = 0; i < AddressByteSorted.Count; i++)
-			//{
-			//	if (Addresses[i] > maxAddress) maxAddress = Addresses[i];
-			//}
-			
+
 			sr.Close();
 			sr.Dispose();
 		}
@@ -90,18 +79,23 @@ public class MotorolaSRECfile
    // {
     //    return data.ToArray();
     //}
-    public uint[] GetAddresses() { return Addresses.ToArray(); }
-    public uint GetMinAddress() { return minAddress; }
-    public uint GetMaxAddress() { return maxAddress; }
+    public long[] GetAddresses() { return Addresses.ToArray(); }
+    public long GetMinAddress() { return minAddress; }
+    public long GetMaxAddress() { return maxAddress; }
     public byte[] GetBytes() { return Bytes.ToArray(); }
+    public string[] GetLinesOfFile() { return LinesOfFile.ToArray(); }
     public int GetCount() { return AddressByteSorted.Count; }
     public string[] GetErrorMessages() { return FileErrorMessages.ToArray(); }
-	public SortedDictionary<uint, byte> GetAddressByteSorted() { return AddressByteSorted; }
+	public SortedDictionary<long, byte> GetAddressByteSorted() { return AddressByteSorted; }
+	public SortedDictionary<long, byte[]> GetAddressLineSorted() { return AddressLineSorted; }
 	
-    List<uint> Addresses = new List<uint>();
+    List<long> Addresses = new List<long>();
     List<byte> Bytes = new List<byte>();
     List<byte> data = new List<byte>();
-	SortedDictionary<uint, byte> AddressByteSorted = new SortedDictionary<uint, byte>();
+    List<string> LinesOfFile = new List<string>();
+	SortedDictionary<long, byte> AddressByteSorted = new SortedDictionary<long, byte>();
+	SortedDictionary<long, byte[]> AddressLineSorted = new SortedDictionary<long, byte[]>();
+
 	
     public class SRECline
     {
@@ -123,6 +117,7 @@ public class MotorolaSRECfile
 
         public SRECline(string s, int ln)
         {
+        	crntLine = s;
 			
             startSymbol = s[0];
 
@@ -139,7 +134,7 @@ public class MotorolaSRECfile
 				CriticalErrors = true;
 			}  
             try{
-				length = uint.Parse(s.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
+				length = long.Parse(s.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
 				s = s.Substring(2);
 			}
 			catch (Exception ex){
@@ -148,8 +143,8 @@ public class MotorolaSRECfile
 				CriticalErrors = true;
 			}
             try{
-				address = uint.Parse(s.Substring(0, recordtypes*2+2), System.Globalization.NumberStyles.HexNumber);
-				s = s.Substring(recordtypes*2+2);
+				address = long.Parse(s.Substring(0, recordtypes*2+2), System.Globalization.NumberStyles.HexNumber);
+				s = s.Substring(recordtypes*2+2); // s1 2adr+1crc=3; s3 3adr+1crc4; s4 4adr+1crc=4;
 			}
 			catch (Exception ex){
 				//ErrorMessages = ex.Message;
@@ -157,8 +152,8 @@ public class MotorolaSRECfile
 				CriticalErrors = true;
 			}
 
-				data = new byte[length-(1+recordtypes*2)];
-				for (int i = 0; i < length-(1+recordtypes*2); i++)
+				data = new byte[length-(1+1+recordtypes)]; // s1 2adr+1crc=3; s3 3adr+1crc4; s4 4adr+1crc=4;
+				for (int i = 0; i < length-(1+1+recordtypes); i++)
 				{
 					
             		try{
@@ -179,7 +174,7 @@ public class MotorolaSRECfile
 				LineErrorMessages.Add("В строке " + ln + " " + ex.Message);
 				CriticalErrors = true;
 			}	
-			for (int i = 0; i < length-(1+recordtypes*2); i++){
+			for (int i = 0; i < length-(1+1+recordtypes); i++){
 					bytes += data[i];
 			}
 			if(recordtype == RecordType.DataRecord16) {
@@ -196,15 +191,17 @@ public class MotorolaSRECfile
 			}
         }
 
-
+        public string crntLine;
         char startSymbol;
-        uint length;
-        public uint address;
+        long length;
+        public long address;
         public RecordType recordtype;
 		public int recordtypes;
 		public int recordCount;
         public  byte[] data;
-		public SortedDictionary<uint, byte> AddressByteSorted;
+		public SortedDictionary<long, byte> AddressByteSorted;
+		public SortedDictionary<long, byte[]> AddressLineSorted;
+		public List<string> LinesOfFile;
         byte checksum;
 		byte bytes = 0;
 		public List<string> LineErrorMessages = new List<string>();
@@ -215,7 +212,7 @@ public class MotorolaSRECfile
 	public List<string> FileErrorMessages = new List<string>();
 	public string ErrorMessage ="";
 	public bool CriticalError = false;
-	public uint minAddress = uint.MinValue;
-	public uint maxAddress = uint.MinValue;
+	public long minAddress = long.MaxValue;
+	public long maxAddress = long.MinValue;
 } // class MotorolaSRECfile
 // MotorolaSRECfile.cs

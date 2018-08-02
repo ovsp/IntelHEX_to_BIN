@@ -1,2 +1,2 @@
-IntelHEX_to_BIN 1FFFEC00-1FFFF800.srec 00
+IntelHEX_to_BIN s1FFFEC00-s1FFFF800.srec 00
 pause

@@ -19,29 +19,91 @@ public class IntelHEX_to_BIN
 
 		Console.WriteLine(" Загружен файл " + fileNameExt);
 		
-		if(fileNameExt.ToLower().EndsWith(".hex")) { fileName = fileNameExt.Replace(".hex", ""); fileExt = ".hex";}
-		if(fileNameExt.ToLower().EndsWith(".srec")) { fileName = fileNameExt.Replace(".srec", ""); fileExt = ".srec";}
-		if(fileNameExt.ToLower().EndsWith(".sx")) { fileName = fileNameExt.Replace(".sx", ""); fileExt = ".sx";}
-		if(fileNameExt.ToLower().EndsWith(".s19")) { fileName = fileNameExt.Replace(".s19", ""); fileExt = ".s19";}
-		if(fileNameExt.ToLower().EndsWith(".s28")) { fileName = fileNameExt.Replace(".s28", ""); fileExt = ".s28";}
-		if(fileNameExt.ToLower().EndsWith(".s37")) { fileName = fileNameExt.Replace(".s37", ""); fileExt = ".s37";}
 		
+		
+		if(fileNameExt.ToLower().EndsWith(".hex")) { fileName = fileNameExt.Replace(".hex", ""); fileExt = ".hex";
+			HEXfileContent = new IntelHEXfile(fileNameExt);} else
+		if(fileNameExt.ToLower().EndsWith(".srec")) { fileName = fileNameExt.Replace(".srec", ""); fileExt = ".srec";
+			SRECfileContent = new MotorolaSRECfile(fileNameExt);} else
+		if(fileNameExt.ToLower().EndsWith(".sx")) { fileName = fileNameExt.Replace(".sx", ""); fileExt = ".sx";
+			SRECfileContent = new MotorolaSRECfile(fileNameExt);} else
+		if(fileNameExt.ToLower().EndsWith(".s19")) { fileName = fileNameExt.Replace(".s19", ""); fileExt = ".s19";
+			SRECfileContent = new MotorolaSRECfile(fileNameExt);} else
+		if(fileNameExt.ToLower().EndsWith(".s28")) { fileName = fileNameExt.Replace(".s28", ""); fileExt = ".s28";
+			SRECfileContent = new MotorolaSRECfile(fileNameExt);} else
+		if(fileNameExt.ToLower().EndsWith(".s37")) { fileName = fileNameExt.Replace(".s37", ""); fileExt = ".s37";
+			SRECfileContent = new MotorolaSRECfile(fileNameExt);}
+		else {fileName = fileNameExt; fileNameExt = fileNameExt + ".hex"; fileExt = ".hex";
+			HEXfileContent = new IntelHEXfile(fileNameExt);}
+
         try{
 			fillByte = byte.Parse(arg[1], System.Globalization.NumberStyles.HexNumber);
 		}
-			catch (Exception ex){
+		catch (Exception ex){
 			Console.WriteLine(" Второй аргумент командной строки содержит символ(ы) не из диапазона 0...9, A...F");
 			return;
 			}  
 		
 		Console.WriteLine(" Байт для заполнения 0x{0:X2}", fillByte);
 		
+		Console.WriteLine(HEXfileContent);
+		Console.WriteLine(SRECfileContent);
+		
+		if(HEXfileContent != null) Console.WriteLine(" HEXfileContent равен null");
+		
+		if(HEXfileContent == null) Console.WriteLine(" HEXfileContent не равен null");
+		
+		if(SRECfileContent.GetCount() == 0) Console.WriteLine(" SRECfileContent.GetCount() равен 0");
+		
+		if(SRECfileContent.GetCount() != 0) Console.WriteLine(" SRECfileContent.GetCount() не равен 0");
+		
+		//Console.WriteLine(" HEXfileContent равен null");
+		
+		for(int i=0; i< SRECfileContent.GetLinesOfFile().Length; i++){
+			Console.WriteLine(" " + SRECfileContent.GetLinesOfFile()[i]);
+		}
+		for(int i=0; i< SRECfileContent.GetErrorMessages().Length; i++){
+			Console.WriteLine(SRECfileContent.GetErrorMessages()[i]);
+		}
+		//for(int i=0; i< SRECfileContent.GetAddresses().Length; i++){
+		//	Console.WriteLine(SRECfileContent.GetAddresses()[i]);
+		//}
+		Console.WriteLine(" Минимальный адрес 0x{0:X8}", SRECfileContent.GetMinAddress());
+		Console.WriteLine(" Максимальный адрес 0x{0:X8}", SRECfileContent.GetMaxAddress());
+		//Dumps.Dump_To_Console(SRECfileContent.GetAddressByteSorted(), 32);
+		
+		//Dumps.Dumps_To_Console(SRECfileContent.GetAddressLineSorted(), 32);
+		
+		long[] addresses = SRECfileContent.GetAddresses();
+		byte[] bytes = SRECfileContent.GetBytes();
+		
+		try {
+			dataBinaryOut = new
+				BinaryWriter(new FileStream(String.Format("{0:X8}", SRECfileContent.GetMinAddress()) + "-" + String.Format("{0:X8}", SRECfileContent.GetMaxAddress()) + ".bin", FileMode.OpenOrCreate));
+		}
+		catch(IOException exc)   {
+			Console.WriteLine(exc.Message + "\nНе удается открыть файл.");
+			return;
+		}
+		for(int i=0; i < addresses.Length; i++){
+			try  {
+				dataBinaryOut.Write(bytes[i]);
+			}
+			catch(IOException exc)   {
+				Console.WriteLine(exc.Message + "\nОшибка при записи.");
+			}
+		}//for
+		dataBinaryOut.Close(); 
 		
 		
 		
     } // Main();
 	
 
+	public static BinaryWriter dataBinaryOut;
+	public static IntelHEXfile HEXfileContent;
+	public static MotorolaSRECfile SRECfileContent;	
+	
 	public static bool unready = true;
     
 	public static byte fillByte = 0x00;
